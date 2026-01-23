@@ -7,7 +7,7 @@ const FinWiseIntegration = () => {
   const [error, setError] = useState(null);
 
   // 🔴 PASTE YOUR GOOGLE SHEET CSV LINK HERE
-  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1P-1a8Z-tm2_OD3OBZvoeof49GeY88TAjZdFjZxF7Big/edit?gid=0#gid=0";
+  const SHEET_URL = "const SHEET_URL = "https://docs.google.com/spreadsheets/d/1P-1a8Z-tm2_OD3OBZvoeof49GeY88TAjZdFjZxF7Big/export?format=csv";
 
   // Fallback mock data
   const mockBiasResults = [
