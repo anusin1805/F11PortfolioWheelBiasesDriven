@@ -2,56 +2,72 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, TrendingUp, Download, RefreshCw } from 'lucide-react';
 
 const FinWiseIntegration = () => {
-  const [biasResults, setBiasResults] = useState([]);
   const [watchlistData, setWatchlistData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Simulated bias wheel results - in production, this would fetch from your GitHub Pages
+  // 🔴 PASTE YOUR GOOGLE SHEET CSV LINK HERE
+  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1P-1a8Z-tm2_OD3OBZvoeof49GeY88TAjZdFjZxF7Big/edit?gid=0#gid=0";
+
+  // Fallback mock data
   const mockBiasResults = [
     { symbol: 'AAPL', category: 'Technology', bias: 'Hold', price: 185.92, marketCap: '2.85T' },
-    { symbol: 'MSFT', category: 'Technology', bias: 'Hold', price: 415.26, marketCap: '3.09T' },
-    { symbol: 'GOOGL', category: 'Technology', bias: 'Hold', price: 140.93, marketCap: '1.76T' },
-    { symbol: 'AMZN', category: 'Consumer', bias: 'Hold', price: 178.35, marketCap: '1.85T' },
-    { symbol: 'NVDA', category: 'Technology', bias: 'Hold', price: 495.22, marketCap: '1.22T' },
-    { symbol: 'META', category: 'Technology', bias: 'Hold', price: 484.03, marketCap: '1.24T' },
-    { symbol: 'TSLA', category: 'Automotive', bias: 'Hold', price: 207.83, marketCap: '662B' },
-    { symbol: 'BRK.B', category: 'Financial', bias: 'Hold', price: 456.12, marketCap: '1.01T' },
-    { symbol: 'JPM', category: 'Financial', bias: 'Hold', price: 219.54, marketCap: '628B' },
-    { symbol: 'V', category: 'Financial', bias: 'Hold', price: 308.67, marketCap: '644B' }
+    { symbol: 'MSFT', category: 'Technology', bias: 'Buy', price: 415.26, marketCap: '3.09T' },
   ];
 
   useEffect(() => {
-    // Initialize with mock data
-    setBiasResults(mockBiasResults);
+    // Load mock data initially
     setWatchlistData(mockBiasResults);
   }, []);
+
+  // --- CSV PARSING HELPER ---
+  const parseCSV = (csvText) => {
+    const lines = csvText.split("\n");
+    // Skip header row (slice 1) and filter empty lines
+    return lines.slice(1).filter(line => line.trim() !== "").map(line => {
+      // Regex to handle commas inside quotes (e.g., "1,000")
+      const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+      
+      // Map CSV columns to state object keys
+      // ADJUST INDICES [0], [1] based on your specific sheet columns
+      return {
+        symbol: values[0]?.trim() || "N/A",
+        category: values[1]?.trim() || "N/A",
+        bias: values[2]?.trim() || "Neutral",
+        price: values[3]?.replace(/[^0-9.]/g, '') || "0.00", // Clean price string
+        marketCap: values[4]?.trim() || "-"
+      };
+    });
+  };
 
   const fetchFromBiasWheel = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Simulate API call to GitHub Pages
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (SHEET_URL.includes("YOUR_GOOGLE_SHEET")) {
+        throw new Error("Please configure the Google Sheet URL in the code first.");
+      }
+
+      const response = await fetch(SHEET_URL);
+      if (!response.ok) throw new Error('Network response was not ok');
       
-      // In production, you would fetch from:
-      // const response = await fetch('https://anusin1805.github.io/MasterDashboard/api/bias-results');
-      // const data = await response.json();
+      const csvText = await response.text();
+      const parsedData = parseCSV(csvText);
       
-      setBiasResults(mockBiasResults);
-      setWatchlistData(mockBiasResults);
+      setWatchlistData(parsedData);
+      
     } catch (err) {
-      setError('Failed to fetch bias wheel data');
+      console.error(err);
+      setError(`Failed to fetch data: ${err.message}. Showing cached/mock data.`);
     } finally {
       setLoading(false);
     }
   };
 
   const syncToGoogleSheets = () => {
-    // Generate CSV format for easy copy-paste to Google Sheets
     const csvContent = [
-      ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Date'],
+      ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Sync Date'],
       ...watchlistData.map(item => [
         item.symbol,
         item.category,
@@ -62,57 +78,53 @@ const FinWiseIntegration = () => {
       ])
     ].map(row => row.join(',')).join('\n');
 
-    // Copy to clipboard
     navigator.clipboard.writeText(csvContent);
-    alert('Watchlist data copied to clipboard! Paste it into your Google Sheets.');
+    alert('Data copied! You can now paste it directly into Excel or Sheets.');
   };
 
   const exportToCanva = () => {
-    // Prepare data in a format suitable for Canva
     const canvaData = watchlistData.map(item => ({
       stock: item.symbol,
       recommendation: item.bias,
       price: `$${item.price}`,
       marketCap: item.marketCap
     }));
-
-    const jsonData = JSON.stringify(canvaData, null, 2);
-    navigator.clipboard.writeText(jsonData);
-    alert('Data formatted for Canva copied to clipboard!');
+    navigator.clipboard.writeText(JSON.stringify(canvaData, null, 2));
+    alert('JSON for Canva copied to clipboard!');
   };
 
   const downloadCSV = () => {
-    const csvContent = [
-      ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Date'],
-      ...watchlistData.map(item => [
-        item.symbol,
-        item.category,
-        item.bias,
-        item.price,
-        item.marketCap,
-        new Date().toLocaleDateString()
-      ])
-    ].map(row => row.join(',')).join('\n');
+    const headers = ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Date'];
+    const rows = watchlistData.map(item => [
+      item.symbol,
+      item.category,
+      item.bias,
+      item.price,
+      item.marketCap,
+      new Date().toISOString().split('T')[0]
+    ]);
 
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `finwise-watchlist-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `finwise-live-data-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-6">
+    <div className="min-h-screen bg-slate-900 p-6 font-sans">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
+        <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700 shadow-xl">
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            <TrendingUp className="w-8 h-8" />
-            FinWise Integration Dashboard
+            <TrendingUp className="w-8 h-8 text-blue-400" />
+            FinWise Live Dashboard
           </h1>
-          <p className="text-white/80">
-            Sync bias wheel results to your watchlist and Google Sheets
+          <p className="text-slate-400">
+            Real-time sync from Master Google Sheet
           </p>
         </div>
 
@@ -121,110 +133,103 @@ const FinWiseIntegration = () => {
           <button
             onClick={fetchFromBiasWheel}
             disabled={loading}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Fetch Bias Data
+            {loading ? 'Fetching...' : 'Fetch Live Data'}
           </button>
           
           <button
             onClick={syncToGoogleSheets}
-            className="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
           >
             <Download className="w-5 h-5" />
-            Copy to Sheets
+            Copy to Clipboard
           </button>
           
           <button
             onClick={exportToCanva}
-            className="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
           >
             <Download className="w-5 h-5" />
-            Export to Canva
+            JSON for Canva
           </button>
           
           <button
             onClick={downloadCSV}
-            className="bg-pink-500 hover:bg-pink-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+            className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
           >
             <Download className="w-5 h-5" />
-            Download CSV
+            Download .CSV
           </button>
         </div>
 
-        {/* Error Display */}
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded-xl p-4 mb-6 flex items-center gap-3">
+          <div className="bg-red-900/50 border border-red-500 rounded-xl p-4 mb-6 flex items-center gap-3 animate-pulse">
             <AlertCircle className="w-6 h-6 text-red-300" />
             <span className="text-red-100">{error}</span>
           </div>
         )}
 
-        {/* Watchlist Table */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 overflow-hidden">
-          <div className="p-6 border-b border-white/20">
-            <h2 className="text-2xl font-bold text-white">Current Watchlist</h2>
-            <p className="text-white/60 mt-1">{watchlistData.length} stocks tracked</p>
+        {/* Data Table */}
+        <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
+          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Live Watchlist</h2>
+              <p className="text-slate-400 text-sm mt-1">{watchlistData.length} assets tracking</p>
+            </div>
+            <div className="text-xs text-slate-500">
+               Last Sync: {new Date().toLocaleTimeString()}
+            </div>
           </div>
           
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-white/5">
+              <thead className="bg-slate-900/50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">Symbol</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">Category</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-white/80">Bias</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-white/80">Price</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-white/80">Market Cap</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Symbol</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Category</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bias</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Price</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Mkt Cap</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-slate-700">
                 {watchlistData.map((item, index) => (
-                  <tr key={index} className="hover:bg-white/5 transition-colors">
+                  <tr key={index} className="hover:bg-slate-700/50 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className="text-white font-semibold text-lg">{item.symbol}</span>
+                      <span className="text-white font-bold font-mono text-lg group-hover:text-blue-400 transition-colors">{item.symbol}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-white/70">{item.category}</span>
+                      <span className="px-2 py-1 rounded bg-slate-700 text-slate-300 text-xs uppercase tracking-wider">{item.category}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-blue-500/30 text-blue-200 rounded-full text-sm font-medium">
+                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        item.bias.toLowerCase().includes('buy') ? 'bg-green-500/20 text-green-400' :
+                        item.bias.toLowerCase().includes('sell') ? 'bg-red-500/20 text-red-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
                         {item.bias}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-white font-medium">${item.price}</span>
+                      <span className="text-white font-mono">${item.price}</span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-white/70">{item.marketCap}</span>
+                      <span className="text-slate-400 font-mono text-sm">{item.marketCap}</span>
                     </td>
                   </tr>
                 ))}
+                {watchlistData.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                      No data loaded. Click "Fetch Live Data" to start.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Integration Instructions */}
-        <div className="mt-6 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-          <h3 className="text-xl font-bold text-white mb-4">Integration Guide</h3>
-          <div className="space-y-3 text-white/80">
-            <div className="flex items-start gap-3">
-              <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-semibold">1</span>
-              <p>Click "Fetch Bias Data" to pull latest results from your bias wheel dashboard</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-semibold">2</span>
-              <p>Click "Copy to Sheets" to copy formatted data, then paste into your Google Sheets</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-semibold">3</span>
-              <p>Use "Export to Canva" to get JSON formatted data for your Canva watchlist site</p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 font-semibold">4</span>
-              <p>Download CSV for backup or offline analysis</p>
-            </div>
           </div>
         </div>
       </div>
