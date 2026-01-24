@@ -1,2 +1,0 @@
-npm install lucide-react
-requests==2.32.3
