@@ -73,4 +73,5 @@ const FinWiseIntegration = () => {
     </div>
   );
 };
+
 export default FinWiseIntegration;
