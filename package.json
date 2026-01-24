@@ -2,7 +2,7 @@
   "name": "finwise-integration",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://anusin1805.github.io/F11PortfolioWheelBiasesDriven",
+  "homepage": ".",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
