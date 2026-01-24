@@ -53,9 +53,10 @@ function App() {
             /* Render the External Tools in an Iframe */
             <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-white">
               <iframe 
-                src={iframeUrl} 
-                className="w-full h-full border-none" 
-                title="FinWise Tool"
+                  src={iframeUrl} 
+                  className="w-full h-full border-none" 
+                  title="FinWise Tool"
+                  sandbox="allow-scripts allow-same-origin allow-forms"
               />
             </div>
           )}
