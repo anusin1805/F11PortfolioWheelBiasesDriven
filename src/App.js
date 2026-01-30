@@ -6,9 +6,22 @@ function App() {
   const [iframeUrl, setIframeUrl] = useState("https://anusin1805.github.io/F11BehaviourFinanceWheelTest/");
 
   const navLinks = [
-    { id: 'F11Grow', label: '🎯 F11FinWise App', url: "https://anusin1805.github.io/F11BehaviourFinanceWheelTest/" },
-    { id: 'profile', label: '🎡 Behavior Wheel', url: "https://anusin1805.github.io/F11BehaviourFinanceWheelTest/" },
-    { id: 'Portfolio', label: '🎡 Behavior Wheel Portfolio', isReact: true },
+    { 
+      id: 'profile', 
+      label: '🎡 Behavior Wheel', 
+      url: "https://anusin1805.github.io/F11BehaviourFinanceWheelTest/" 
+    },
+    { 
+      id: 'Portfolio', 
+      label: '🎡 Behavior Wheel Portfolio', 
+      isReact: true 
+    },
+    { 
+      id: 'PortfolioDownload', 
+      label: '🏆 Portfolio Download 🏆', 
+      // This is the Google Sheet URL with minimal parameters for embedding
+      url: "https://docs.google.com/spreadsheets/d/11-G1tbWMxIrPVCi1npZOCfs-MZmr_4qBobcRCyP_viE/edit?usp=sharing&widget=true&headers=false&rm=minimal" 
+    },
   ];
 
   return (
@@ -50,12 +63,20 @@ function App() {
             /* Render the Live Watchlist Component */
             <FinWiseIntegration />
           ) : (
-            /* Render the External Tools in an Iframe */
-            <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-white">
+            /* Render External Tools (Behavior Wheel OR Google Sheet) */
+            <div className="w-full h-full rounded-2xl overflow-hidden border border-slate-700 shadow-2xl bg-white flex flex-col">
+              
+              {/* Conditional Header specifically for Portfolio Download */}
+              {view === 'PortfolioDownload' && (
+                <div className="bg-slate-100 p-4 border-b border-slate-300">
+                   <h4 className="m-0 text-center font-bold text-slate-800">Portfolio Update Form</h4>
+                </div>
+              )}
+
               <iframe 
                   src={iframeUrl} 
-                  className="w-full h-full border-none" 
-                  title="FinWise Tool"
+                  className="w-full h-full border-none flex-1" 
+                  title="External Tool"
                   sandbox="allow-scripts allow-same-origin allow-forms"
               />
             </div>
