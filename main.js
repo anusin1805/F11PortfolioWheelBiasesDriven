@@ -234,3 +234,82 @@ const FinWiseIntegration = () => {
 };
 
 export default FinWiseIntegration;
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
+
+async function createPortfolio(portfolioName, description = '') {
+  // Get current logged-in user
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("Please log in first!");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('portfolios')
+    .insert([
+      { 
+        user_id: user.id, 
+        portfolio_name: portfolioName, 
+        description: description 
+      }
+    ])
+    .select();
+
+  if (error) {
+    console.error('Error creating portfolio:', error.message);
+  } else {
+    console.log('Portfolio created successfully:', data);
+  }
+}
+async function addAssetToPortfolio(portfolioId, symbol, name, assetType, quantity, buyPrice) {
+  const { data, error } = await supabase
+    .from('portfolio_holdings')
+    .insert([
+      {
+        portfolio_id: portfolioId,
+        asset_symbol: symbol,
+        asset_name: name,
+        asset_type: assetType, // 'equity', 'crypto', 'mutual_fund', etc.
+        quantity: quantity,
+        buy_price: buyPrice,
+        current_price: buyPrice
+      }
+    ])
+    .select();
+
+  if (error) {
+    console.error('Error adding holding:', error.message);
+  } else {
+    console.log('Asset added successfully:', data);
+  }
+}
+async function getUserPortfolios() {
+  const { data, error } = await supabase
+    .from('portfolios')
+    .select(`
+      id,
+      portfolio_name,
+      description,
+      currency,
+      portfolio_holdings (
+        id,
+        asset_symbol,
+        asset_name,
+        asset_type,
+        quantity,
+        buy_price,
+        current_price
+      )
+    `);
+
+  if (error) {
+    console.error('Error fetching portfolios:', error.message);
+  } else {
+    console.log('User Portfolios:', data);
+    return data;
+  }
+}
+
