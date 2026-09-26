@@ -1,315 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, TrendingUp, Download, RefreshCw } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
-const FinWiseIntegration = () => {
-  const [watchlistData, setWatchlistData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+// Initialize Supabase (Ensure env variables are exposed to your build)
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL, 
+  process.env.REACT_APP_SUPABASE_ANON_KEY
+);
 
-  // ✅ FIXED: Correct Syntax and updated with your specific Sheet ID
-  const SHEET_URL = "https://docs.google.com/spreadsheets/d/11-G1tbWMxIrPVCi1npZOCfs-MZmr_4qBobcRCyP_viE/export?format=csv";
+const BehaviorWheelPortfolio = () => {
+  // State for Google Sheets
+  const [sheetsData, setSheetsData] = useState([]);
+  const [isLoadingSheets, setIsLoadingSheets] = useState(true);
 
-  // Fallback mock data
-  const mockBiasResults = [
-    { symbol: 'AAPL', category: 'Technology', bias: 'Hold', price: '185.92', marketCap: '2.85T' },
-    { symbol: 'MSFT', category: 'Technology', bias: 'Buy', price: '415.26', marketCap: '3.09T' },
-  ];
+  // State for Supabase
+  const [supabaseData, setSupabaseData] = useState([]);
+  const [isLoadingSupabase, setIsLoadingSupabase] = useState(true);
+  const [supabaseError, setSupabaseError] = useState(null);
 
   useEffect(() => {
-    // Load mock data initially
-    setWatchlistData(mockBiasResults);
+    // 1. Fetch Google Sheets Data (Leave your existing logic intact)
+    const fetchSheetsData = async () => {
+      try {
+        // Your existing Google Sheets fetch logic here
+        // const response = await fetch('YOUR_SHEETS_API');
+        // setSheetsData(await response.json());
+      } catch (error) {
+        console.error("Sheets Error:", error);
+      } finally {
+        setIsLoadingSheets(false);
+      }
+    };
+
+    // 2. Fetch Supabase Data Independently
+    const fetchSupabaseData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('your_portfolio_table') // Replace with your actual table name
+          .select('*');
+
+        if (error) throw error;
+        
+        setSupabaseData(data);
+      } catch (error) {
+        console.error("Supabase Error:", error.message);
+        setSupabaseError(error.message);
+      } finally {
+        // This ensures the loading screen goes away even if it fails
+        setIsLoadingSupabase(false); 
+      }
+    };
+
+    fetchSheetsData();
+    fetchSupabaseData();
   }, []);
 
-  // --- CSV PARSING HELPER ---
-  const parseCSV = (csvText) => {
-    const lines = csvText.split("\n");
-    // Skip header row (slice 1) and filter empty lines
-    return lines.slice(1).filter(line => line.trim() !== "").map(line => {
-      // Regex to handle commas inside quotes (e.g., "1,000")
-      const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
-      
-      // ⚠️ IMPORTANT: Verify these indices match your actual Google Sheet Columns
-      // Current assumption: Col A=Symbol, Col B=Category, Col C=Bias, Col D=Price, Col E=Market Cap
-      return {
-        symbol: values[0]?.trim() || "N/A",
-        category: values[1]?.trim() || "N/A",
-        bias: values[2]?.trim() || "Neutral",
-        price: values[3]?.replace(/[^0-9.]/g, '') || "0.00", // Clean price string
-        marketCap: values[4]?.trim() || "-"
-      };
-    });
-  };
-
-  const fetchFromBiasWheel = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await fetch(SHEET_URL);
-      if (!response.ok) throw new Error('Network response was not ok. Check Sheet Permissions.');
-      
-      const csvText = await response.text();
-      const parsedData = parseCSV(csvText);
-      
-      setWatchlistData(parsedData);
-      
-    } catch (err) {
-      console.error(err);
-      setError(`Failed to fetch data: ${err.message}. Showing cached/mock data.`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const syncToGoogleSheets = () => {
-    const csvContent = [
-      ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Sync Date'],
-      ...watchlistData.map(item => [
-        item.symbol,
-        item.category,
-        item.bias,
-        item.price,
-        item.marketCap,
-        new Date().toLocaleDateString()
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    navigator.clipboard.writeText(csvContent);
-    alert('Data copied! You can now paste it directly into Excel or Sheets.');
-  };
-
-  const exportToCanva = () => {
-    const canvaData = watchlistData.map(item => ({
-      stock: item.symbol,
-      recommendation: item.bias,
-      price: `$${item.price}`,
-      marketCap: item.marketCap
-    }));
-    navigator.clipboard.writeText(JSON.stringify(canvaData, null, 2));
-    alert('JSON for Canva copied to clipboard!');
-  };
-
-  const downloadCSV = () => {
-    const headers = ['Symbol', 'Category', 'Bias', 'Price', 'Market Cap', 'Date'];
-    const rows = watchlistData.map(item => [
-      item.symbol,
-      item.category,
-      item.bias,
-      item.price,
-      item.marketCap,
-      new Date().toISOString().split('T')[0]
-    ]);
-
-    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finwise-live-data-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
+  // UI Rendering
   return (
-    <div className="min-h-screen bg-slate-900 p-6 font-sans">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700 shadow-xl">
-          <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-blue-400" />
-            FinWise Live Dashboard
-          </h1>
-          <p className="text-slate-400">
-            Real-time sync from Master Google Sheet
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <button
-            onClick={fetchFromBiasWheel}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Fetching...' : 'Fetch Live Data'}
-          </button>
-          
-          <button
-            onClick={syncToGoogleSheets}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Download className="w-5 h-5" />
-            Copy to Clipboard
-          </button>
-          
-          <button
-            onClick={exportToCanva}
-            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Download className="w-5 h-5" />
-            JSON for Canva
-          </button>
-          
-          <button
-            onClick={downloadCSV}
-            className="bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 shadow-lg"
-          >
-            <Download className="w-5 h-5" />
-            Download .CSV
-          </button>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-900/50 border border-red-500 rounded-xl p-4 mb-6 flex items-center gap-3 animate-pulse">
-            <AlertCircle className="w-6 h-6 text-red-300" />
-            <span className="text-red-100">{error}</span>
-          </div>
+    <div className="portfolio-container">
+      {/* Google Sheets UI */}
+      <section>
+        <h2>Google Sheets Portfolio</h2>
+        {isLoadingSheets ? (
+          <p>Loading Sheets Data...</p>
+        ) : (
+          <div>{/* Render Sheets Data Here */}</div>
         )}
+      </section>
 
-        {/* Data Table */}
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
-          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Live Watchlist</h2>
-              <p className="text-slate-400 text-sm mt-1">{watchlistData.length} assets tracking</p>
-            </div>
-            <div className="text-xs text-slate-500">
-               Last Sync: {new Date().toLocaleTimeString()}
-            </div>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-900/50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Symbol</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Category</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-slate-300">Bias</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Price</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-slate-300">Mkt Cap</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {watchlistData.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-700/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="text-white font-bold font-mono text-lg group-hover:text-blue-400 transition-colors">{item.symbol}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 rounded bg-slate-700 text-slate-300 text-xs uppercase tracking-wider">{item.category}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                        item.bias.toLowerCase().includes('buy') ? 'bg-green-500/20 text-green-400' :
-                        item.bias.toLowerCase().includes('sell') ? 'bg-red-500/20 text-red-400' :
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {item.bias}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-white font-mono">${item.price}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-slate-400 font-mono text-sm">{item.marketCap}</span>
-                    </td>
-                  </tr>
-                ))}
-                {watchlistData.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
-                      No data loaded. Click "Fetch Live Data" to start.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      {/* Supabase UI */}
+      <section>
+        <h2>Supabase Portfolio</h2>
+        {isLoadingSupabase ? (
+          <p>Loading your Supabase Portfolio...</p> // This is what you see currently
+        ) : supabaseError ? (
+          <p style={{ color: 'red' }}>Error loading Supabase: {supabaseError}</p>
+        ) : (
+          <div>{/* Render Supabase Data Here */}</div>
+        )}
+      </section>
     </div>
   );
 };
 
-export default FinWiseIntegration;
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
-
-async function createPortfolio(portfolioName, description = '') {
-  // Get current logged-in user
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    alert("Please log in first!");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from('portfolios')
-    .insert([
-      { 
-        user_id: user.id, 
-        portfolio_name: portfolioName, 
-        description: description 
-      }
-    ])
-    .select();
-
-  if (error) {
-    console.error('Error creating portfolio:', error.message);
-  } else {
-    console.log('Portfolio created successfully:', data);
-  }
-}
-async function addAssetToPortfolio(portfolioId, symbol, name, assetType, quantity, buyPrice) {
-  const { data, error } = await supabase
-    .from('portfolio_holdings')
-    .insert([
-      {
-        portfolio_id: portfolioId,
-        asset_symbol: symbol,
-        asset_name: name,
-        asset_type: assetType, // 'equity', 'crypto', 'mutual_fund', etc.
-        quantity: quantity,
-        buy_price: buyPrice,
-        current_price: buyPrice
-      }
-    ])
-    .select();
-
-  if (error) {
-    console.error('Error adding holding:', error.message);
-  } else {
-    console.log('Asset added successfully:', data);
-  }
-}
-async function getUserPortfolios() {
-  const { data, error } = await supabase
-    .from('portfolios')
-    .select(`
-      id,
-      portfolio_name,
-      description,
-      currency,
-      portfolio_holdings (
-        id,
-        asset_symbol,
-        asset_name,
-        asset_type,
-        quantity,
-        buy_price,
-        current_price
-      )
-    `);
-
-  if (error) {
-    console.error('Error fetching portfolios:', error.message);
-  } else {
-    console.log('User Portfolios:', data);
-    return data;
-  }
-}
-
+export default BehaviorWheelPortfolio;
